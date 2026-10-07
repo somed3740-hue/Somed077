@@ -2,7 +2,6 @@ name: Build APK
 
 on:
   push:
-    branches: [main, master]
   workflow_dispatch:
 
 jobs:
@@ -10,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Décompresser le zip
+        run: unzip -oq xwx.zip -d projet
 
       - uses: actions/setup-node@v4
         with:
@@ -21,26 +23,31 @@ jobs:
           java-version: 21
 
       - name: Installer les dépendances
+        working-directory: projet
         run: npm install --legacy-peer-deps
 
-      - name: Build web (Vite)
+      - name: Build web
+        working-directory: projet
         run: npm run build
 
       - name: Ajouter Capacitor
+        working-directory: projet
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps
           npx cap init "VTC Connect" com.somed.vtcconnect --web-dir=dist
           npx cap add android
 
-      - name: Autoriser la géolocalisation
+      - name: Permission géolocalisation
+        working-directory: projet
         run: |
           sed -i 's#<application#<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <application#' android/app/src/main/AndroidManifest.xml
 
-      - name: Synchroniser le web vers Android
+      - name: Synchroniser
+        working-directory: projet
         run: npx cap sync android
 
       - name: Compiler l'APK
-        working-directory: android
+        working-directory: projet/android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
@@ -49,4 +56,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: projet/android/app/build/outputs/apk/debug/app-debug.apk
